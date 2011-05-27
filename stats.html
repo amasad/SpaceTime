@@ -1,0 +1,166 @@
+<html>
+  <head>
+    <title>SpaceTime</title>
+    <script type="text/javascript" src="../lib/jquery.js"></script>
+    <script type="text/javascript" src="../lib/protovis-d3.2.js"></script>
+    <style type="text/css">
+
+body {
+  margin: 0;
+}
+#panel {
+  position:absolute;
+}
+#site-visual {
+  margin-left:10px;
+}
+#legend{
+  position:absolute;
+  right:0;
+}
+    </style>
+  </head>
+
+  <body>
+    <div id="panel">
+      <table>
+        <tr id="name"><td>Site</td><td></td></tr>
+        <tr id="unique-views"><td>Unique Page Views</td><td></td></tr>
+        <tr id="link-degree"><td>Link Degree</td><td></td></tr>
+        <tr id="page-views"><td>Page Views</td><td></td></tr>
+      </table>
+
+      <div id="site-visual">
+        
+      </div>
+    </div>
+    <div id="legend"><div>Levels of blue for link degree</div><div>Size for page views</div></div>
+    <script type="text/javascript+protovis">
+    var vis = new pv.Panel()
+        .width(340)
+        .height(10)
+      .add(pv.Bar)
+        .data(pv.range(0, 1, 1/85))
+        .left(function() this.index * 4)
+        .width(4)
+        .fillStyle(pv.ramp('#0000A0', '#3BB9FF'));
+      vis.root.render();
+      $(vis.root.$canvas).prependTo('#legend');
+      setTimeout(function(){
+        $("#legend").hide("slow", function()$(this).remove())
+        
+      },5000)
+    </script>
+    <script type="text/javascript+protovis">
+    function visualizeVisits(site){
+      var w = 300,
+          h = 100,
+          daysByYr = site.visualize(),
+          yrs = Object.keys(daysByYr),
+          yr = Math.max.apply(Math, yrs),
+          yrData = daysByYr[yr].sort(function(a,b) a-b),
+          x = pv.Scale.linear(0, 365).range(0, w),
+          bins = pv.histogram(yrData).bins(x.ticks(60)),
+          y = pv.Scale.linear(0, pv.max(bins, function(d) d.y)).range(0, h);
+          
+        window.getMonth = function(x){
+          var d = new Date()
+          d.setMonth(Math.floor(x / 30))
+          return d.toString().split(' ')[1];
+        }
+          var vis = new pv.Panel()
+              .width(w)
+              .height(h)
+              .margin(20);
+
+          vis.add(pv.Bar)
+              .data(bins)
+              .bottom(0)
+              .left(function(d) x(d.x))
+              .width(function(d) x(d.dx))
+              .height(function(d) y(d.y))
+              .fillStyle("#aaa")
+              .strokeStyle("blue")
+              .lineWidth(1)
+              .antialias(false);
+
+          vis.add(pv.Rule)
+              .data(y.ticks(5))
+              .width(5)
+              .bottom(y)
+              .strokeStyle("#fff")
+            .anchor("left").add(pv.Label)
+              .text(y.tickFormat);
+
+          vis.add(pv.Rule)
+            .data(pv.range(0, 365, 30))
+            .height(5)
+            .bottom(-5)
+            .left(x)
+            
+          vis.add(pv.Rule)
+            .bottom(0)
+          
+          vis.add(pv.Rule)
+              .data(pv.range(15,365,30))
+              .bottom(-5)
+              .height(0)
+              .left(x)
+              .anchor("bottom").add(pv.Label)
+                .text(getMonth)
+          X = x;
+          vis.render();
+          $('#site-visual').empty().append(vis.$canvas);
+    }
+    function init(data){
+        var $ = jQuery;
+        var w = document.body.clientWidth,
+            h = document.body.clientHeight,
+            colors = pv.Colors.category19();
+        
+        var vis = new pv.Panel()
+            .def("i", -1)
+            .width(w)
+            .height(h)
+            .fillStyle("white")
+            .event("mousedown", pv.Behavior.pan())
+            .event("mousewheel", pv.Behavior.zoom());
+
+        var force = vis.add(pv.Layout.Force)
+            .nodes(data.nodes)
+            .links(data.links);
+
+        force.link.add(pv.Line);
+        
+        var $name = $('#name'),
+            $unique = $('#unique-views'),
+            $degree = $('#link-degree'),
+            $pageViews = $('#page-views');
+        
+        force.node.add(pv.Dot)
+            .size(function(d) d.visitsArr.length * Math.pow(this.scale, -2.0) /*(d.linkDegree + 4) * Math.pow(this.scale, -1.5)*/)
+            .fillStyle(function(d) vis.i() == this.index ? "orange" : pv.ramp("#3BB9FF", "#0000A0")(d.linkDegree * 0.1))
+            .strokeStyle(function() this.fillStyle().darker())
+            .lineWidth(1)
+            .title(function(d) d.nodeName)
+            .event("mousedown", pv.Behavior.drag())
+            .event("drag", force)
+            .event("click", function(site) {
+                vis.i(this.index);
+                $name.find('td:last')
+                    .text(site.nodeName);
+                $degree.find('td:last')
+                    .text(site.linkDegree);
+                $pageViews.find('td:last')
+                    .text(site.visitsArr.length);
+                $unique.find('td:last')
+                    .text(site.items.length);
+                visualizeVisits(site);
+            })
+
+        vis.render();
+      }
+    </script>
+
+  </body>
+</html>
